@@ -45,7 +45,7 @@
       <button class="key key-enter" data-val="enter">↵</button>
     </div>
 
-    <div class="lock-footer">MARK v2.0 · ENCRYPTED STORAGE</div>
+    <div class="lock-footer">MARK v2.1 · ENCRYPTED STORAGE · ALL FILE TYPES</div>
   </div>
 </div>
 
@@ -185,6 +185,11 @@
             <button class="view-btn" data-view="list">≡</button>
           </div>
         </div>
+        <div class="file-types-hint">
+          <span class="hint-tag">PNG</span><span class="hint-tag">JPG</span><span class="hint-tag">JPEG</span>
+          <span class="hint-tag">GIF</span><span class="hint-tag">WEBP</span><span class="hint-tag">BMP</span>
+          <span class="hint-tag">SVG</span><span class="hint-tag">TIFF</span>
+        </div>
         <div class="photo-grid" id="photoGrid">
           <div class="empty-state"><div class="empty-icon">◈</div><p>Nenhuma foto armazenada</p></div>
         </div>
@@ -203,6 +208,11 @@
             <input type="text" placeholder="Buscar vídeos..." id="searchVideos" class="search-input" />
           </div>
         </div>
+        <div class="file-types-hint">
+          <span class="hint-tag">MP4</span><span class="hint-tag">WEBM</span><span class="hint-tag">AVI</span>
+          <span class="hint-tag">MOV</span><span class="hint-tag">MKV</span><span class="hint-tag">WMV</span>
+          <span class="hint-tag">FLV</span><span class="hint-tag">3GP</span>
+        </div>
         <div class="video-grid" id="videoGrid">
           <div class="empty-state"><div class="empty-icon">◈</div><p>Nenhum vídeo armazenado</p></div>
         </div>
@@ -214,6 +224,11 @@
           <span class="section-header-line"></span>
           <span class="section-header-text">ARQUIVOS DE ÁUDIO</span>
           <span class="section-header-line"></span>
+        </div>
+        <div class="file-types-hint">
+          <span class="hint-tag">MP3</span><span class="hint-tag">WAV</span><span class="hint-tag">OGG</span>
+          <span class="hint-tag">FLAC</span><span class="hint-tag">AAC</span><span class="hint-tag">M4A</span>
+          <span class="hint-tag">WMA</span><span class="hint-tag">AIFF</span>
         </div>
         <div class="audio-list" id="audioList">
           <div class="empty-state"><div class="empty-icon">◈</div><p>Nenhum áudio armazenado</p></div>
@@ -232,6 +247,12 @@
             <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
             <input type="text" placeholder="Buscar arquivos..." id="searchFiles" class="search-input" />
           </div>
+        </div>
+        <div class="file-types-hint">
+          <span class="hint-tag">PDF</span><span class="hint-tag">DOCX</span><span class="hint-tag">DOC</span>
+          <span class="hint-tag">XLS</span><span class="hint-tag">XLSX</span><span class="hint-tag">PPTX</span>
+          <span class="hint-tag">ZIP</span><span class="hint-tag">TXT</span><span class="hint-tag">CSV</span>
+          <span class="hint-tag">JSON</span><span class="hint-tag">+ qualquer formato</span>
         </div>
         <div class="file-table-wrap">
           <table class="file-table">
@@ -259,44 +280,106 @@
           <span class="section-header-line"></span>
         </div>
         <div class="settings-grid">
+
+          <!-- DB STATUS -->
           <div class="settings-card">
             <div class="settings-card-title">BANCO DE DADOS FIREBASE</div>
             <div class="db-list" id="dbList">
-              <div class="db-item">
-                <span class="db-item-dot" id="db0dot"></span>
-                <span class="db-item-name">Firebase Primary</span>
-                <span class="db-item-url">wery-777fe</span>
-                <span class="db-item-status" id="db0status">Verificando...</span>
+              <div class="db-item db-item--expanded">
+                <div class="db-item-header">
+                  <span class="db-item-dot" id="db0dot"></span>
+                  <span class="db-item-name">Firebase Primary</span>
+                  <span class="db-item-url">wery-777fe</span>
+                  <span class="db-item-status" id="db0status">Verificando...</span>
+                </div>
+                <div class="db-space-info">
+                  <div class="db-space-bar" id="db0bar">
+                    <div class="db-space-fill" style="width:0%"></div>
+                  </div>
+                  <div class="db-space-row">
+                    <span id="db0space">—</span>
+                    <span id="db0free" class="db-free-text">—</span>
+                  </div>
+                </div>
               </div>
-              <div class="db-item">
-                <span class="db-item-dot" id="db1dot"></span>
-                <span class="db-item-name">Firebase Secondary</span>
-                <span class="db-item-url">qyvg-bb81a</span>
-                <span class="db-item-status" id="db1status">Verificando...</span>
+              <div class="db-item db-item--expanded">
+                <div class="db-item-header">
+                  <span class="db-item-dot" id="db1dot"></span>
+                  <span class="db-item-name">Firebase Secondary</span>
+                  <span class="db-item-url">qyvg-bb81a</span>
+                  <span class="db-item-status" id="db1status">Verificando...</span>
+                </div>
+                <div class="db-space-info">
+                  <div class="db-space-bar" id="db1bar">
+                    <div class="db-space-fill" style="width:0%"></div>
+                  </div>
+                  <div class="db-space-row">
+                    <span id="db1space">—</span>
+                    <span id="db1free" class="db-free-text">—</span>
+                  </div>
+                </div>
               </div>
-              <div class="db-item">
-                <span class="db-item-dot" id="db2dot"></span>
-                <span class="db-item-name">Firebase Europe</span>
-                <span class="db-item-url">jsh-2d229 (EU)</span>
-                <span class="db-item-status" id="db2status">Verificando...</span>
+              <div class="db-item db-item--expanded">
+                <div class="db-item-header">
+                  <span class="db-item-dot" id="db2dot"></span>
+                  <span class="db-item-name">Firebase Europe</span>
+                  <span class="db-item-url">jsh-2d229 (EU)</span>
+                  <span class="db-item-status" id="db2status">Verificando...</span>
+                </div>
+                <div class="db-space-info">
+                  <div class="db-space-bar" id="db2bar">
+                    <div class="db-space-fill" style="width:0%"></div>
+                  </div>
+                  <div class="db-space-row">
+                    <span id="db2space">—</span>
+                    <span id="db2free" class="db-free-text">—</span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
 
-          <div class="settings-card">
-            <div class="settings-card-title">ARMAZENAMENTO</div>
-            <div class="settings-stat"><span>Total de arquivos</span><span id="s-total">0</span></div>
-            <div class="settings-stat"><span>Fotos (Base85)</span><span id="s-photos">0</span></div>
-            <div class="settings-stat"><span>Vídeos (Base64)</span><span id="s-videos">0</span></div>
-            <div class="settings-stat"><span>Áudio</span><span id="s-audio">0</span></div>
-            <div class="settings-stat"><span>Outros</span><span id="s-docs">0</span></div>
+          <!-- SPACE ANALYSIS -->
+          <div class="settings-card settings-card--space">
+            <div class="settings-card-title">ANÁLISE DE ESPAÇO LIVRE</div>
+            <div id="spaceSummary" class="space-summary">
+              <div class="space-summary-row">
+                <span>Analisando bancos...</span>
+                <span>—</span>
+              </div>
+            </div>
+            <button class="space-refresh-btn" id="refreshSpaceBtn">ATUALIZAR ESPAÇO</button>
+            <p class="space-note">Espaço calculado em todos os 3 bancos Firebase (limite gratuito: 1 GB/banco)</p>
           </div>
 
+          <!-- FILE STATS -->
+          <div class="settings-card">
+            <div class="settings-card-title">ESTATÍSTICAS</div>
+            <div class="settings-stat"><span>Total de arquivos</span><span id="s-total">0</span></div>
+            <div class="settings-stat"><span>Fotos</span><span id="s-photos">0</span></div>
+            <div class="settings-stat"><span>Vídeos</span><span id="s-videos">0</span></div>
+            <div class="settings-stat"><span>Áudio</span><span id="s-audio">0</span></div>
+            <div class="settings-stat"><span>Documentos/Outros</span><span id="s-docs">0</span></div>
+          </div>
+
+          <!-- TIPOS SUPORTADOS -->
+          <div class="settings-card">
+            <div class="settings-card-title">TIPOS DE ARQUIVO SUPORTADOS</div>
+            <div class="settings-stat"><span>Imagens</span><span>PNG, JPG, GIF, WEBP, BMP, SVG, TIFF...</span></div>
+            <div class="settings-stat"><span>Vídeos</span><span>MP4, AVI, MOV, MKV, WMV, FLV...</span></div>
+            <div class="settings-stat"><span>Áudio</span><span>MP3, WAV, OGG, FLAC, AAC, WMA...</span></div>
+            <div class="settings-stat"><span>Documentos</span><span>PDF, DOCX, XLS, XLSX, PPTX, TXT...</span></div>
+            <div class="settings-stat"><span>Arquivos</span><span>ZIP, RAR, 7Z, TAR, GZ...</span></div>
+            <div class="settings-stat"><span>Outros</span><span>Qualquer formato de arquivo</span></div>
+          </div>
+
+          <!-- DANGER ZONE -->
           <div class="settings-card settings-card--danger">
             <div class="settings-card-title">ZONA DE PERIGO</div>
             <button class="danger-btn" id="clearAllBtn">LIMPAR TODOS OS DADOS</button>
             <p class="danger-note">Esta ação apagará todos os arquivos armazenados de todos os bancos de dados Firebase.</p>
           </div>
+
         </div>
       </section>
 
@@ -304,14 +387,8 @@
   </main>
 </div>
 
-<!-- Hidden upload input -->
-<input 
-  type="file"
-  id="fileInput"
-  multiple
-  accept="*/*,.apk,.zip,.rar,.html,.js,.css,.json,.txt,.pdf,.doc,.docx,.mp3,.mp4,.png,.jpg,.jpeg"
-  style="display:none"
-/>
+<!-- Hidden upload input — accepts ALL file types -->
+<input type="file" id="fileInput" multiple accept="*/*" style="display:none" />
 
 <!-- Upload Progress Overlay -->
 <div class="upload-overlay hidden" id="uploadOverlay">

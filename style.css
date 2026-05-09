@@ -1526,7 +1526,6 @@ svg { fill: currentColor; }
   from { opacity: 0; transform: translateX(20px); }
   to { opacity: 1; transform: translateX(0); }
 }
-
 .toast.out {
   animation: toastOut 0.3s ease forwards;
 }
@@ -1575,4 +1574,196 @@ svg { fill: currentColor; }
   }
 
   .upload-modal { min-width: 90vw; }
+}
+/* ═══════════════════════════════════════════════════════════
+   v2.1 ADDITIONS — All File Types + Download + Space Analysis
+═══════════════════════════════════════════════════════════ */
+
+/* ─── File type hints ─── */
+.file-types-hint {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 6px 0;
+}
+
+.hint-tag {
+  padding: 2px 8px;
+  background: var(--c-purple-faint);
+  border: 1px solid var(--c-purple-dim);
+  border-radius: 2px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--c-accent);
+  letter-spacing: 1px;
+}
+
+/* ─── Card action buttons (download/delete) ─── */
+.card-action-btn {
+  width: 28px; height: 28px;
+  background: rgba(0,0,0,0.75);
+  border: 1px solid var(--c-border-bright);
+  border-radius: var(--radius);
+  color: var(--c-white);
+  font-size: 13px;
+  display: flex; align-items: center; justify-content: center;
+  backdrop-filter: blur(4px);
+  transition: all var(--anim-fast);
+  cursor: pointer;
+}
+
+/* ─── Photo card size label ─── */
+.photo-card-size {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--c-purple);
+  margin-top: 2px;
+}
+
+/* ─── Recent item actions (with download) ─── */
+.recent-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* ─── DB expanded items with space info ─── */
+.db-item--expanded {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  padding: 10px 12px;
+}
+
+.db-item-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.db-item-header .db-item-name { flex: 1; }
+
+.db-space-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-left: 18px;
+}
+
+.db-space-bar {
+  height: 4px;
+  background: var(--c-border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.db-space-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--c-success);
+  border-radius: 2px;
+  transition: width 1s ease, background 0.5s ease;
+  box-shadow: 0 0 6px currentColor;
+}
+
+.db-space-row {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--c-white-dim);
+}
+
+.db-free-text {
+  color: var(--c-success) !important;
+  font-weight: bold;
+}
+
+/* ─── Space Analysis card ─── */
+.settings-card--space {
+  border-color: rgba(0, 255, 136, 0.2);
+}
+
+.settings-card--space .settings-card-title {
+  color: var(--c-success);
+}
+
+.space-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.space-summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--c-border);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--c-white-dim);
+}
+
+.space-summary-row:last-child { border-bottom: none; }
+
+.space-value-free {
+  color: var(--c-success) !important;
+  font-size: 15px !important;
+  font-weight: bold;
+}
+
+.space-refresh-btn {
+  width: 100%;
+  padding: 10px;
+  background: transparent;
+  border: 1px solid var(--c-success);
+  border-radius: var(--radius);
+  color: var(--c-success);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 2px;
+  transition: all var(--anim-fast);
+  margin-bottom: 10px;
+  cursor: pointer;
+}
+
+.space-refresh-btn:hover {
+  background: rgba(0, 255, 136, 0.08);
+  box-shadow: 0 0 14px rgba(0, 255, 136, 0.2);
+}
+
+.space-refresh-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.space-note {
+  font-family: var(--font-body);
+  font-size: 11px;
+  color: var(--c-white-dim);
+  line-height: 1.5;
+  opacity: 0.7;
+}
+
+/* ─── Lightbox download button ─── */
+.lightbox-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* ─── File btn dl style ─── */
+.file-btn.dl {
+  border-color: var(--c-purple-dim);
+  color: var(--c-accent);
+}
+.file-btn.dl:hover {
+  border-color: var(--c-success);
+  color: var(--c-success);
+  background: rgba(0,255,136,0.06);
 }

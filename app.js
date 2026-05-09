@@ -1,6 +1,6 @@
 /* ═══════════════════════════════════════════════════════════
    MARK — Personal Cloud System
-   app.js — Main Application Logic
+   app.js — Main Application Logic (v2.1 — All File Types + Download + Space Analysis)
 ═══════════════════════════════════════════════════════════ */
 
 'use strict';
@@ -14,6 +14,54 @@ const FIREBASE_URLS = [
 
 const DB_NAMES = ['Firebase Primary', 'Firebase Secondary', 'Firebase Europe'];
 
+// Firebase Realtime Database free tier: 1 GB storage per database
+const DB_FREE_LIMIT_BYTES = 1 * 1024 * 1024 * 1024; // 1 GB per DB
+
+/* ─── File Type Maps ─── */
+const MIME_MAP = {
+  // Images
+  'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'png': 'image/png',
+  'gif': 'image/gif', 'webp': 'image/webp', 'bmp': 'image/bmp',
+  'svg': 'image/svg+xml', 'ico': 'image/x-icon', 'tiff': 'image/tiff', 'tif': 'image/tiff',
+  // Videos
+  'mp4': 'video/mp4', 'webm': 'video/webm', 'avi': 'video/x-msvideo',
+  'mov': 'video/quicktime', 'mkv': 'video/x-matroska', 'wmv': 'video/x-ms-wmv',
+  'flv': 'video/x-flv', 'm4v': 'video/x-m4v', '3gp': 'video/3gpp',
+  // Audio
+  'mp3': 'audio/mpeg', 'wav': 'audio/wav', 'ogg': 'audio/ogg',
+  'flac': 'audio/flac', 'm4a': 'audio/x-m4a', 'aac': 'audio/aac',
+  'wma': 'audio/x-ms-wma', 'aiff': 'audio/aiff', 'opus': 'audio/opus',
+  // Documents
+  'pdf': 'application/pdf',
+  'doc': 'application/msword',
+  'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'xls': 'application/vnd.ms-excel',
+  'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'ppt': 'application/vnd.ms-powerpoint',
+  'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'txt': 'text/plain', 'csv': 'text/csv', 'json': 'application/json',
+  'xml': 'application/xml', 'html': 'text/html', 'htm': 'text/html',
+  'md': 'text/markdown', 'rtf': 'application/rtf',
+  // Archives
+  'zip': 'application/zip', 'rar': 'application/x-rar-compressed',
+  '7z': 'application/x-7z-compressed', 'tar': 'application/x-tar',
+  'gz': 'application/gzip',
+  // Code
+  'js': 'text/javascript', 'ts': 'text/typescript', 'css': 'text/css',
+  'py': 'text/x-python', 'java': 'text/x-java', 'cpp': 'text/x-c++src',
+  'c': 'text/x-csrc', 'sh': 'application/x-sh', 'sql': 'application/sql',
+  // Other
+  'apk': 'application/vnd.android.package-archive',
+  'exe': 'application/x-msdownload',
+  'dmg': 'application/x-apple-diskimage',
+};
+
+function getMimeType(file) {
+  if (file.type && file.type !== '') return file.type;
+  const ext = file.name.split('.').pop().toLowerCase();
+  return MIME_MAP[ext] || 'application/octet-stream';
+}
+
 /* ─── App State ─── */
 const state = {
   activeDB: 0,
@@ -22,6 +70,8 @@ const state = {
   correctPin: '2009',
   unlocked: false,
   currentSection: 'dashboard',
+  dbOnline: false,
+  dbSpaceInfo: [],
 };
 
 /* ─── DOM References ─── */
@@ -52,9 +102,7 @@ function initLock() {
         if (pinBuffer.length < 4) {
           pinBuffer += val;
           updateDots();
-          if (pinBuffer.length === 4) {
-            setTimeout(checkPin, 180);
-          }
+          if (pinBuffer.length === 4) setTimeout(checkPin, 180);
         }
       }
     });
@@ -78,9 +126,7 @@ function initLock() {
 }
 
 function updateDots() {
-  lockDots.forEach((dot, i) => {
-    dot.classList.toggle('filled', i < pinBuffer.length);
-  });
+  lockDots.forEach((dot, i) => dot.classList.toggle('filled', i < pinBuffer.length));
 }
 
 function checkPin() {
@@ -102,7 +148,6 @@ function shakeLock() {
   dots.style.animation = 'none';
   dots.offsetHeight;
   dots.style.animation = 'shake 0.4s ease';
-
   const styleId = 'shakeStyle';
   if (!document.getElementById(styleId)) {
     const s = document.createElement('style');
@@ -119,13 +164,9 @@ function shakeLock() {
 function unlock() {
   state.unlocked = true;
   lockScreen.style.animation = 'lockOut 0.5s ease forwards';
-
   const lockOutStyle = document.createElement('style');
-  lockOutStyle.textContent = `@keyframes lockOut {
-    to { opacity: 0; transform: scale(1.05); pointer-events: none; }
-  }`;
+  lockOutStyle.textContent = `@keyframes lockOut { to { opacity: 0; transform: scale(1.05); pointer-events: none; } }`;
   document.head.appendChild(lockOutStyle);
-
   setTimeout(() => {
     lockScreen.classList.remove('active');
     lockScreen.classList.add('hidden');
@@ -147,7 +188,6 @@ function lock() {
 
 /* ═══════════════════════════════════════════════════════════
    BASE85 ENCODING (for photos)
-   Custom Ascii85 variant
 ═══════════════════════════════════════════════════════════ */
 const b85 = (() => {
   const chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!#$%&()*+-;<=>?@^_`{|}~";
@@ -181,9 +221,7 @@ const b85 = (() => {
         const ch = j < chunk.length ? chunk[j] : chars[84];
         n = n * 85 + chars.indexOf(ch);
       }
-      for (let j = 3; j >= padding; j--) {
-        result.push((n >> (j * 8)) & 0xff);
-      }
+      for (let j = 3; j >= padding; j--) result.push((n >> (j * 8)) & 0xff);
     }
     return new Uint8Array(result);
   }
@@ -199,21 +237,10 @@ function arrayBufferToBase64(buffer) {
   return btoa(binary);
 }
 
-function base64ToArrayBuffer(b64) {
-  const binary = atob(b64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return bytes.buffer;
-}
-
-/* ─── Read file as various encodings ─── */
 function readFileAsBase64(file) {
   return new Promise((res, rej) => {
     const fr = new FileReader();
-    fr.onload = () => {
-      const b64 = fr.result.split(',')[1];
-      res(b64);
-    };
+    fr.onload = () => res(fr.result.split(',')[1]);
     fr.onerror = rej;
     fr.readAsDataURL(file);
   });
@@ -225,13 +252,10 @@ async function readFileAsBase85(file) {
 }
 
 async function encodeFile(file) {
-  const type = file.type;
-  if (type.startsWith('image/')) {
+  const mimeType = getMimeType(file);
+  if (mimeType.startsWith('image/')) {
     const data = await readFileAsBase85(file);
     return { encoding: 'base85', data };
-  } else if (type.startsWith('video/')) {
-    const data = await readFileAsBase64(file);
-    return { encoding: 'base64', data };
   } else {
     const data = await readFileAsBase64(file);
     return { encoding: 'base64', data };
@@ -243,26 +267,19 @@ async function encodeFile(file) {
 ═══════════════════════════════════════════════════════════ */
 async function fbReq(method, path, body = null) {
   const url = `${FIREBASE_URLS[state.activeDB]}${path}.json`;
-  const opts = {
-    method,
-    headers: { 'Content-Type': 'application/json' }
-  };
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
   if (body !== null) opts.body = JSON.stringify(body);
   try {
     const r = await fetch(url, opts);
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     return await r.json();
   } catch (e) {
-    // Try next DB
     for (let i = 0; i < FIREBASE_URLS.length; i++) {
       if (i === state.activeDB) continue;
       try {
         const url2 = `${FIREBASE_URLS[i]}${path}.json`;
         const r2 = await fetch(url2, { method, headers: { 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
-        if (r2.ok) {
-          state.activeDB = i;
-          return await r2.json();
-        }
+        if (r2.ok) { state.activeDB = i; return await r2.json(); }
       } catch (_) {}
     }
     throw e;
@@ -286,14 +303,19 @@ async function clearAllFromDB() {
   await fbReq('DELETE', '/mark');
 }
 
-/* ─── Check DB status ─── */
+/* ─── Check DB status + Space Analysis ─── */
 async function checkDBStatus() {
   const dot = document.querySelector('.db-dot');
   let anyOnline = false;
+  state.dbSpaceInfo = [];
 
   for (let i = 0; i < FIREBASE_URLS.length; i++) {
     const dotEl = $(`db${i}dot`);
     const statusEl = $(`db${i}status`);
+    const spaceEl = $(`db${i}space`);
+    const barEl = $(`db${i}bar`);
+    const freeEl = $(`db${i}free`);
+
     try {
       const r = await fetch(`${FIREBASE_URLS[i]}/.json?shallow=true`, { method: 'GET' });
       if (r.ok) {
@@ -301,20 +323,75 @@ async function checkDBStatus() {
         if (statusEl) statusEl.textContent = 'Online ✓';
         anyOnline = true;
         if (!state.dbOnline) state.activeDB = i;
+
+        // Estimate used space from all data in this DB
+        try {
+          const dataResp = await fetch(`${FIREBASE_URLS[i]}/mark.json`);
+          if (dataResp.ok) {
+            const rawText = await dataResp.text();
+            const usedBytes = new Blob([rawText]).size;
+            const freeBytes = Math.max(0, DB_FREE_LIMIT_BYTES - usedBytes);
+            const usedPct = Math.min(100, (usedBytes / DB_FREE_LIMIT_BYTES) * 100);
+
+            state.dbSpaceInfo.push({ name: DB_NAMES[i], used: usedBytes, free: freeBytes, total: DB_FREE_LIMIT_BYTES, online: true });
+
+            if (spaceEl) spaceEl.textContent = `Usado: ${formatSize(usedBytes)} / ${formatSize(DB_FREE_LIMIT_BYTES)}`;
+            if (freeEl) freeEl.textContent = `Livre: ${formatSize(freeBytes)}`;
+            if (barEl) {
+              barEl.querySelector('.db-space-fill').style.width = usedPct + '%';
+              barEl.querySelector('.db-space-fill').style.background =
+                usedPct > 80 ? 'var(--c-danger)' : usedPct > 50 ? 'var(--c-warn)' : 'var(--c-success)';
+            }
+          }
+        } catch (_) {
+          state.dbSpaceInfo.push({ name: DB_NAMES[i], used: 0, free: DB_FREE_LIMIT_BYTES, total: DB_FREE_LIMIT_BYTES, online: true });
+        }
+
       } else {
         dotEl.className = 'db-item-dot offline';
         if (statusEl) statusEl.textContent = 'Offline ✗';
+        if (spaceEl) spaceEl.textContent = 'Indisponível';
+        if (freeEl) freeEl.textContent = '—';
+        state.dbSpaceInfo.push({ name: DB_NAMES[i], used: 0, free: 0, total: DB_FREE_LIMIT_BYTES, online: false });
       }
     } catch {
       dotEl.className = 'db-item-dot offline';
       if (statusEl) statusEl.textContent = 'Sem conexão';
+      if (spaceEl) spaceEl.textContent = 'Sem conexão';
+      if (freeEl) freeEl.textContent = '—';
+      state.dbSpaceInfo.push({ name: DB_NAMES[i], used: 0, free: 0, total: DB_FREE_LIMIT_BYTES, online: false });
     }
   }
 
-  if (dot) {
-    dot.className = 'db-dot ' + (anyOnline ? 'online' : 'offline');
-  }
+  if (dot) dot.className = 'db-dot ' + (anyOnline ? 'online' : 'offline');
   state.dbOnline = anyOnline;
+
+  // Update total free space summary
+  updateTotalSpaceSummary();
+}
+
+function updateTotalSpaceSummary() {
+  const totalFree = state.dbSpaceInfo.reduce((s, db) => s + (db.online ? db.free : 0), 0);
+  const totalUsed = state.dbSpaceInfo.reduce((s, db) => s + db.used, 0);
+  const totalCapacity = state.dbSpaceInfo.reduce((s, db) => s + db.total, 0);
+
+  const summaryEl = $('spaceSummary');
+  if (summaryEl) {
+    summaryEl.innerHTML = `
+      <div class="space-summary-row">
+        <span>Espaço Total Livre</span>
+        <span class="space-value-free">${formatSize(totalFree)}</span>
+      </div>
+      <div class="space-summary-row">
+        <span>Total Usado</span>
+        <span>${formatSize(totalUsed)}</span>
+      </div>
+      <div class="space-summary-row">
+        <span>Capacidade Total</span>
+        <span>${formatSize(totalCapacity)}</span>
+      </div>
+    `;
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -333,7 +410,7 @@ function toast(msg, type = 'info') {
 }
 
 /* ═══════════════════════════════════════════════════════════
-   UPLOAD LOGIC
+   UPLOAD LOGIC — ALL FILE TYPES
 ═══════════════════════════════════════════════════════════ */
 async function handleUpload(files) {
   const overlay = $('uploadOverlay');
@@ -362,13 +439,16 @@ async function handleUpload(files) {
     addLog(`Processando: ${file.name} (${formatSize(file.size)})`);
 
     try {
-      const { encoding, data } = await encodeFile(file);
+      // Fix MIME type if browser didn't detect it
+      const fixedFile = file.type ? file : new File([file], file.name, { type: getMimeType(file) });
+      const { encoding, data } = await encodeFile(fixedFile);
       addLog(`Codificação: ${encoding.toUpperCase()}`);
 
-      const category = getCategory(file.type);
+      const mimeType = getMimeType(fixedFile);
+      const category = getCategory(mimeType, file.name);
       const fileObj = {
         name: file.name,
-        type: file.type,
+        type: mimeType,
         size: file.size,
         encoding,
         data,
@@ -397,10 +477,15 @@ async function handleUpload(files) {
   }, 1200);
 }
 
-function getCategory(mimeType) {
+function getCategory(mimeType, filename = '') {
   if (mimeType.startsWith('image/')) return 'photos';
   if (mimeType.startsWith('video/')) return 'videos';
   if (mimeType.startsWith('audio/')) return 'audio';
+  // Also detect by extension for edge cases
+  const ext = filename.split('.').pop().toLowerCase();
+  if (['mp3','wav','ogg','flac','m4a','aac','wma','aiff','opus'].includes(ext)) return 'audio';
+  if (['mp4','webm','avi','mov','mkv','wmv','flv','m4v','3gp'].includes(ext)) return 'videos';
+  if (['jpg','jpeg','png','gif','webp','bmp','svg','ico','tiff','tif'].includes(ext)) return 'photos';
   return 'docs';
 }
 
@@ -408,6 +493,7 @@ function getCategory(mimeType) {
    RENDER FUNCTIONS
 ═══════════════════════════════════════════════════════════ */
 function formatSize(bytes) {
+  if (!bytes || bytes === 0) return '0 B';
   if (bytes < 1024) return bytes + ' B';
   if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
   if (bytes < 1024 * 1024 * 1024) return (bytes / 1024 / 1024).toFixed(1) + ' MB';
@@ -420,26 +506,65 @@ function formatDate(iso) {
   } catch { return iso; }
 }
 
-function getFileIcon(type) {
+function getFileIcon(type, filename = '') {
+  if (!type) type = '';
+  const ext = filename.split('.').pop().toLowerCase();
+
   if (type.startsWith('image/')) return `<svg viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>`;
   if (type.startsWith('video/')) return `<svg viewBox="0 0 24 24"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>`;
   if (type.startsWith('audio/')) return `<svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>`;
+
+  // Document type icons
+  if (['xls','xlsx'].includes(ext) || type.includes('spreadsheet') || type.includes('excel'))
+    return `<svg viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm-1 7V3.5L18.5 9H13zM8 11h2v2H8zm0 4h2v2H8zm4-4h2v2h-2zm0 4h2v2h-2zm4-4h2v2h-2zm0 4h2v2h-2z"/></svg>`;
+  if (['doc','docx'].includes(ext) || type.includes('word'))
+    return `<svg viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm-1 7V3.5L18.5 9H13zM7 17l2-6 2 4 2-2 2 4H7z"/></svg>`;
+  if (['ppt','pptx'].includes(ext) || type.includes('presentation'))
+    return `<svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 8h-3v3H9v-3H6V9h3V6h2v3h3v2z"/></svg>`;
+  if (ext === 'pdf' || type.includes('pdf'))
+    return `<svg viewBox="0 0 24 24"><path d="M20 2H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-8.5 7.5c0 .83-.67 1.5-1.5 1.5H9v2H7.5V7H10c.83 0 1.5.67 1.5 1.5v1zm5 2c0 .83-.67 1.5-1.5 1.5h-2.5V7H15c.83 0 1.5.67 1.5 1.5v3zm4-3H19v1h1.5V11H19v2h-1.5V7h3v1.5zM9 9.5h1v-1H9v1zM4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm10 5.5h1v-3h-1v3z"/></svg>`;
+  if (['zip','rar','7z','tar','gz'].includes(ext))
+    return `<svg viewBox="0 0 24 24"><path d="M20 6h-2.18c.07-.44.18-.88.18-1 0-2.21-1.79-4-4-4S10 2.79 10 5c0 .12.11.56.18 1H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-6-3c1.1 0 2 .9 2 2H12c0-1.1.9-2 2-2zm6 17H8V8h3v2h2V8h7v12zm-5-8h-2v2h-2v2h2v-2h2v2h2v-2h-2z"/></svg>`;
+
   return `<svg viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm4 18H6V4h7v5h5v11z"/></svg>`;
 }
 
 /* ─── Decode back to src URL ─── */
 function decodeToURL(item) {
   if (!item || !item.data) return null;
-  if (item.encoding === 'base85') {
-    const bytes = b85.decode(item.data);
-    const blob = new Blob([bytes], { type: item.type });
-    return URL.createObjectURL(blob);
-  } else {
-    const binary = atob(item.data);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-    const blob = new Blob([bytes], { type: item.type });
-    return URL.createObjectURL(blob);
+  try {
+    if (item.encoding === 'base85') {
+      const bytes = b85.decode(item.data);
+      const blob = new Blob([bytes], { type: item.type || 'application/octet-stream' });
+      return URL.createObjectURL(blob);
+    } else {
+      const binary = atob(item.data);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      const blob = new Blob([bytes], { type: item.type || 'application/octet-stream' });
+      return URL.createObjectURL(blob);
+    }
+  } catch (e) {
+    console.error('Decode error:', e);
+    return null;
+  }
+}
+
+/* ─── Download — works for ALL file types ─── */
+function downloadFile(item) {
+  try {
+    const url = decodeToURL(item);
+    if (!url) { toast('Erro ao preparar download', 'error'); return; }
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = item.name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+    toast(`Download: ${item.name}`, 'success');
+  } catch (e) {
+    toast('Erro no download', 'error');
   }
 }
 
@@ -468,23 +593,18 @@ function renderPhotos(photos, filter = '') {
 
     card.innerHTML = `
       <div class="photo-card-actions">
-        <button class="card-action-btn dl" title="Download">↓</button>
-        <button class="card-action-btn" title="Deletar">✕</button>
+        <button class="card-action-btn dl" title="Download">⬇</button>
+        <button class="card-action-btn del" title="Deletar">✕</button>
       </div>
       <div class="photo-card-info">
         <div class="photo-card-name">${item.name}</div>
+        <div class="photo-card-size">${formatSize(item.size)}</div>
       </div>
     `;
     card.insertBefore(img, card.firstChild);
 
-    // Lazy decode
     setTimeout(() => {
-      try {
-        const url = decodeToURL(item);
-        img.src = url;
-      } catch (e) {
-        img.style.background = 'var(--c-surface2)';
-      }
+      try { img.src = decodeToURL(item) || img.src; } catch (e) {}
     }, idx * 80);
 
     card.addEventListener('click', e => {
@@ -497,7 +617,7 @@ function renderPhotos(photos, filter = '') {
       downloadFile(item);
     });
 
-    card.querySelector('.card-action-btn:not(.dl)').addEventListener('click', async e => {
+    card.querySelector('.card-action-btn.del').addEventListener('click', async e => {
       e.stopPropagation();
       if (confirm(`Deletar "${item.name}"?`)) {
         await deleteFileFromDB('photos', key);
@@ -529,17 +649,15 @@ function renderVideos(videos, filter = '') {
     card.style.animationDelay = `${idx * 0.05}s`;
     card.innerHTML = `
       <div class="video-thumb">
-        <div class="video-play-icon">
-          <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-        </div>
+        <div class="video-play-icon"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div>
       </div>
       <div class="video-info">
         <div class="video-name">${item.name}</div>
         <div class="video-meta">${formatSize(item.size)} · ${formatDate(item.date)}</div>
       </div>
       <div class="video-actions">
-        <button class="card-action-btn dl" title="Download">↓</button>
-        <button class="card-action-btn" title="Deletar">✕</button>
+        <button class="card-action-btn dl" title="Download">⬇</button>
+        <button class="card-action-btn del" title="Deletar">✕</button>
       </div>
     `;
 
@@ -553,7 +671,7 @@ function renderVideos(videos, filter = '') {
       downloadFile(item);
     });
 
-    card.querySelector('.card-action-btn:not(.dl)').addEventListener('click', async e => {
+    card.querySelector('.card-action-btn.del').addEventListener('click', async e => {
       e.stopPropagation();
       if (confirm(`Deletar "${item.name}"?`)) {
         await deleteFileFromDB('videos', key);
@@ -581,21 +699,21 @@ function renderAudio(audio) {
     const el = document.createElement('div');
     el.className = 'audio-item';
     el.style.animationDelay = `${idx * 0.05}s`;
-
+    const ext = item.name.split('.').pop().toUpperCase();
     el.innerHTML = `
       <div class="audio-icon">
         <svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
       </div>
       <div class="audio-info">
         <div class="audio-name">${item.name}</div>
-        <div class="audio-meta">${formatSize(item.size)} · ${formatDate(item.date)}</div>
+        <div class="audio-meta"><span class="file-type-badge">${ext}</span> ${formatSize(item.size)} · ${formatDate(item.date)}</div>
       </div>
       <div class="audio-controls">
         <button class="audio-play-btn" title="Reproduzir">
           <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
         </button>
-        <button class="card-action-btn dl" title="Download">↓</button>
-        <button class="card-action-btn" title="Deletar">✕</button>
+        <button class="card-action-btn dl" title="Download">⬇</button>
+        <button class="card-action-btn del" title="Deletar">✕</button>
       </div>
     `;
 
@@ -605,7 +723,7 @@ function renderAudio(audio) {
 
     el.querySelector('.card-action-btn.dl').addEventListener('click', () => downloadFile(item));
 
-    el.querySelector('.card-action-btn:not(.dl)').addEventListener('click', async () => {
+    el.querySelector('.card-action-btn.del').addEventListener('click', async () => {
       if (confirm(`Deletar "${item.name}"?`)) {
         await deleteFileFromDB('audio', key);
         toast(`${item.name} deletado`, 'error');
@@ -624,19 +742,16 @@ function playAudio(item, btn) {
     currentAudio.pause();
     currentAudio = null;
   }
-
   const url = decodeToURL(item);
+  if (!url) { toast('Erro ao reproduzir áudio', 'error'); return; }
   const audio = new Audio(url);
   currentAudio = audio;
-
   btn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>`;
-
-  audio.play();
+  audio.play().catch(() => toast('Erro ao reproduzir — tente baixar o arquivo', 'error'));
   audio.addEventListener('ended', () => {
     btn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>`;
     currentAudio = null;
   });
-
   btn.addEventListener('click', () => {
     if (!audio.paused) {
       audio.pause();
@@ -645,7 +760,7 @@ function playAudio(item, btn) {
   }, { once: true });
 }
 
-/* ─── Files table ─── */
+/* ─── Files table — ALL file types ─── */
 function renderFiles(docs, filter = '') {
   const tbody = $('fileTableBody');
   const items = Object.entries(docs || {}).filter(([, v]) =>
@@ -664,8 +779,8 @@ function renderFiles(docs, filter = '') {
     tr.innerHTML = `
       <td>
         <div class="file-table-name">
-          <div class="recent-item-icon" style="width:28px;height:28px;">${getFileIcon(item.type)}</div>
-          ${item.name}
+          <div class="recent-item-icon" style="width:28px;height:28px;">${getFileIcon(item.type, item.name)}</div>
+          <span title="${item.name}">${item.name}</span>
         </div>
       </td>
       <td><span class="file-type-badge">${ext}</span></td>
@@ -673,8 +788,8 @@ function renderFiles(docs, filter = '') {
       <td>${formatDate(item.date)}</td>
       <td>
         <div class="file-actions">
-          <button class="file-btn dl">Download</button>
-          <button class="file-btn del">Deletar</button>
+          <button class="file-btn dl">⬇ Download</button>
+          <button class="file-btn del">✕ Deletar</button>
         </div>
       </td>
     `;
@@ -711,14 +826,13 @@ function renderDashboard(allData) {
   $('totalAudio').textContent = ac;
   $('totalDocs').textContent = dc;
 
-  // Settings stats
   $('s-total').textContent = total;
   $('s-photos').textContent = pc;
   $('s-videos').textContent = vc;
   $('s-audio').textContent = ac;
   $('s-docs').textContent = dc;
 
-  // Storage estimation (rough)
+  // Storage estimation from original file sizes
   const totalBytes = [
     ...Object.values(photos),
     ...Object.values(videos),
@@ -726,10 +840,10 @@ function renderDashboard(allData) {
     ...Object.values(docs)
   ].reduce((sum, f) => sum + (f.size || 0), 0);
 
-  const maxEstimate = 50 * 1024 * 1024; // 50MB visual estimate
+  const maxEstimate = 3 * DB_FREE_LIMIT_BYTES; // 3 GB total across all DBs
   const fillPct = Math.min(100, (totalBytes / maxEstimate) * 100);
   $('storageFill').style.width = fillPct + '%';
-  $('storageText').textContent = formatSize(totalBytes);
+  $('storageText').textContent = `${formatSize(totalBytes)} usados`;
 
   // Recent list
   const all = [
@@ -751,16 +865,21 @@ function renderDashboard(allData) {
     el.className = 'recent-item';
     el.style.animationDelay = `${idx * 0.05}s`;
     el.innerHTML = `
-      <div class="recent-item-icon">${getFileIcon(item.type)}</div>
+      <div class="recent-item-icon">${getFileIcon(item.type, item.name)}</div>
       <div class="recent-item-info">
         <div class="recent-item-name">${item.name}</div>
         <div class="recent-item-meta">${formatDate(item.date)}</div>
       </div>
-      <div class="recent-item-size">${formatSize(item.size)}</div>
+      <div class="recent-item-actions">
+        <button class="file-btn dl" title="Download">⬇</button>
+        <div class="recent-item-size">${formatSize(item.size)}</div>
+      </div>
     `;
-    el.addEventListener('click', () => {
-      switchSection(item.cat);
+    el.querySelector('.file-btn.dl').addEventListener('click', e => {
+      e.stopPropagation();
+      downloadFile(item);
     });
+    el.addEventListener('click', () => switchSection(item.cat));
     recentList.appendChild(el);
   });
 }
@@ -773,8 +892,9 @@ function openLightbox(item, mediaType) {
 
   content.innerHTML = '<div style="color:var(--c-white-dim);font-family:var(--font-mono)">Carregando...</div>';
   lb.classList.remove('hidden');
-
-  meta.textContent = `${item.name} · ${formatSize(item.size)} · ${formatDate(item.date)}`;
+  meta.innerHTML = `${item.name} · ${formatSize(item.size)} · ${formatDate(item.date)}
+    <button class="file-btn dl" style="margin-left:12px" onclick="downloadFile(window._lbItem)">⬇ Download</button>`;
+  window._lbItem = item;
 
   const url = decodeToURL(item);
 
@@ -808,16 +928,6 @@ $('lightbox').addEventListener('click', e => {
   }
 });
 
-/* ─── Download ─── */
-function downloadFile(item) {
-  const url = decodeToURL(item);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = item.name;
-  a.click();
-  toast(`Download iniciado: ${item.name}`, 'success');
-}
-
 /* ═══════════════════════════════════════════════════════════
    LOAD & RENDER ALL
 ═══════════════════════════════════════════════════════════ */
@@ -834,7 +944,6 @@ async function loadAndRenderAll() {
     renderVideos(state.files.videos);
     renderAudio(state.files.audio);
     renderFiles(state.files.docs);
-
   } catch (err) {
     toast('Erro ao carregar dados', 'error');
     console.error(err);
@@ -854,20 +963,11 @@ const sectionTitles = {
 };
 
 function switchSection(name) {
-  // Update nav
-  $$('.nav-item').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.section === name);
-  });
-
-  // Update sections
+  $$('.nav-item').forEach(btn => btn.classList.toggle('active', btn.dataset.section === name));
   $$('.section').forEach(sec => sec.classList.remove('active'));
   $(`section-${name}`).classList.add('active');
-
-  // Update title
   $('topbarTitle').textContent = sectionTitles[name] || name;
   state.currentSection = name;
-
-  // Close mobile sidebar
   $('sidebar').classList.remove('open');
 }
 
@@ -875,99 +975,32 @@ function switchSection(name) {
    INIT APP
 ═══════════════════════════════════════════════════════════ */
 async function initApp() {
-  // Navigation
-  $$('.nav-item').forEach(btn => {
-    btn.addEventListener('click', () => switchSection(btn.dataset.section));
-  });
+  $$('.nav-item').forEach(btn => btn.addEventListener('click', () => switchSection(btn.dataset.section)));
 
-  // Upload button
-  $('uploadBtn').addEventListener('click', async () => {
-
-  // Android moderno
-  if (window.showOpenFilePicker) {
-    try {
-
-      const handles = await window.showOpenFilePicker({
-        multiple: true,
-        excludeAcceptAllOption: false,
-        types: [{
-          description: 'Todos os arquivos',
-          accept: {
-            '*/*': [
-              '.png','.jpg','.jpeg','.webp',
-              '.mp4','.mkv','.avi',
-              '.mp3','.wav',
-              '.apk','.zip','.rar',
-              '.html','.css','.js',
-              '.json','.txt','.pdf'
-            ]
-          }
-        }]
-      });
-
-      const files = await Promise.all(
-        handles.map(h => h.getFile())
-      );
-
-      handleUpload(files);
-
-    } catch (e) {
-      console.log(e);
-    }
-
-  } else {
-
-    // Fallback
-    $('fileInput').click();
-
-  }
-
-});
+  $('uploadBtn').addEventListener('click', () => $('fileInput').click());
 
   $('fileInput').addEventListener('change', e => {
     const files = Array.from(e.target.files);
-    if (files.length > 0) {
-      handleUpload(files);
-      e.target.value = '';
-    }
+    if (files.length > 0) { handleUpload(files); e.target.value = ''; }
   });
 
-  // Lock button
   $('lockBtn').addEventListener('click', lock);
 
-  // Mobile menu
-  $('menuToggle').addEventListener('click', () => {
-    $('sidebar').classList.toggle('open');
-  });
+  $('menuToggle').addEventListener('click', () => $('sidebar').classList.toggle('open'));
 
-  // Search handlers
-  $('searchPhotos').addEventListener('input', e => {
-    renderPhotos(state.files.photos, e.target.value);
-  });
+  $('searchPhotos').addEventListener('input', e => renderPhotos(state.files.photos, e.target.value));
+  $('searchVideos').addEventListener('input', e => renderVideos(state.files.videos, e.target.value));
+  $('searchFiles').addEventListener('input', e => renderFiles(state.files.docs, e.target.value));
 
-  $('searchVideos').addEventListener('input', e => {
-    renderVideos(state.files.videos, e.target.value);
-  });
-
-  $('searchFiles').addEventListener('input', e => {
-    renderFiles(state.files.docs, e.target.value);
-  });
-
-  // View toggle
   $$('.view-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       $$('.view-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       const grid = $('photoGrid');
-      if (btn.dataset.view === 'list') {
-        grid.classList.add('list-view');
-      } else {
-        grid.classList.remove('list-view');
-      }
+      btn.dataset.view === 'list' ? grid.classList.add('list-view') : grid.classList.remove('list-view');
     });
   });
 
-  // Clear all
   $('clearAllBtn').addEventListener('click', async () => {
     if (confirm('ATENÇÃO: Isso apagará TODOS os arquivos permanentemente. Confirmar?')) {
       try {
@@ -980,31 +1013,38 @@ async function initApp() {
     }
   });
 
+  // Refresh space button
+  const refreshSpaceBtn = $('refreshSpaceBtn');
+  if (refreshSpaceBtn) {
+    refreshSpaceBtn.addEventListener('click', async () => {
+      refreshSpaceBtn.textContent = 'ANALISANDO...';
+      refreshSpaceBtn.disabled = true;
+      await checkDBStatus();
+      refreshSpaceBtn.textContent = 'ATUALIZAR ESPAÇO';
+      refreshSpaceBtn.disabled = false;
+      toast('Análise de espaço atualizada', 'success');
+    });
+  }
+
   // Check DB status
-  checkDBStatus();
-  setInterval(checkDBStatus, 30000);
+  await checkDBStatus();
+  setInterval(checkDBStatus, 60000);
 
   // Load all files
   await loadAndRenderAll();
 
-  // Drag and drop support
+  // Drag and drop
   const mainContent = document.querySelector('.content-area');
   mainContent.addEventListener('dragover', e => {
     e.preventDefault();
     mainContent.style.outline = '2px dashed var(--c-purple)';
   });
-
-  mainContent.addEventListener('dragleave', () => {
-    mainContent.style.outline = '';
-  });
-
+  mainContent.addEventListener('dragleave', () => { mainContent.style.outline = ''; });
   mainContent.addEventListener('drop', e => {
     e.preventDefault();
     mainContent.style.outline = '';
     const files = Array.from(e.dataTransfer.files);
-    if (files.length > 0) {
-      handleUpload(files);
-    }
+    if (files.length > 0) handleUpload(files);
   });
 
   toast('Sistema MARK inicializado', 'success');
